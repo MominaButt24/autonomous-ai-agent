@@ -1,0 +1,27 @@
+[project]
+name = "autonomous-ai-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "mominabutt24", email = "bmomina752@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "apscheduler>=3.11.3",
+    "deepagents>=0.7.38",
+    "fastapi>=0.163.1",
+    "gradio>=6.32.0",
+    "langchain-groq>=1.2.0",
+    "playwright>=1.65.2",
+    "python-dotenv>=1.2.4",
+    "rich>=15.0.0",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[project.scripts]
+autonomous-ai-agent = "autonomous_ai_agent:main"
+
+[build-system]
+requires = ["uv_build>=0.12.18,<0.13.0"]
+build-backend = "uv_build"
