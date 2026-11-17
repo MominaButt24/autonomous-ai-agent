@@ -1,62 +1,163 @@
+
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from uuid import uuid4
 
 from event_queue import event_queue
 from dashboard_state import tasks, lock, add_log
 
-scheduler = BackgroundScheduler(timezone="Asia/Karachi")
+
+TIMEZONE = ZoneInfo("Asia/Karachi")
+
+scheduler = BackgroundScheduler(timezone=TIMEZONE)
 
 
-def publish_event(task_id, name, instruction, interval):
+def publish_event(task_id, name, instruction, interval, schedule_type="interval"):
+
+    # Check whether this task still exists and can execute.
+    with lock:
+        task = tasks.get(task_id)
+
+        if task is None:
+            return
+
+        # Prevent duplicate execution and repeated quota failures.
+        if task["status"] in ("Queued", "Running", "Rate Limited"):
+            should_skip = True
+        else:
+            should_skip = False
+            task["status"] = "Queued"
+
+    if should_skip:
+        add_log(
+            f"Trigger skipped: {name} is already running, queued, "
+            "or paused due to rate limits."
+        )
+        return
+
     event_queue.put({
         "task_id": task_id,
         "name": name,
         "instruction": instruction,
         "interval": interval,
-        "created_at": datetime.now().isoformat()
+        "schedule_type": schedule_type,
+        "created_at": datetime.now(TIMEZONE).isoformat()
     })
 
-    add_log(f"Event created for task: {name}")
+    add_log(f"Event queued for task: {name}")
 
 
 def start_scheduler():
+
     if not scheduler.running:
         scheduler.start()
         add_log("Trigger service started.")
 
 
-def create_schedule(name, instruction, interval):
+def create_schedule(
+    name,
+    instruction,
+    interval=None,
+    schedule_type="interval",
+    run_at=None
+):
     task_id = str(uuid4())[:8]
+
+    # Validate the selected scheduling mode.
+    if schedule_type == "interval":
+
+        if interval is None or int(interval) < 1:
+            raise ValueError("Interval must be at least 1 minute.")
+
+        interval = int(interval)
+
+    elif schedule_type == "once":
+
+        if not run_at:
+            raise ValueError("A date and time are required.")
+
+        if isinstance(run_at, str):
+            scheduled_time = datetime.fromisoformat(
+                run_at.replace("Z", "+00:00")
+            )
+        else:
+            scheduled_time = run_at
+
+        # Interpret a naive datetime as Pakistan local time.
+        if scheduled_time.tzinfo is None:
+            scheduled_time = scheduled_time.replace(tzinfo=TIMEZONE)
+        else:
+            scheduled_time = scheduled_time.astimezone(TIMEZONE)
+
+        if scheduled_time <= datetime.now(TIMEZONE):
+            raise ValueError("Please select a future date and time.")
+
+    else:
+        raise ValueError("Invalid schedule type.")
 
     with lock:
         tasks[task_id] = {
             "name": name,
             "instruction": instruction,
             "interval": interval,
+            "schedule_type": schedule_type,
+            "run_at": (
+                scheduled_time.isoformat()
+                if schedule_type == "once"
+                else None
+            ),
             "status": "Scheduled",
             "last_run": "-",
             "last_result": "-"
         }
 
-    scheduler.add_job(
-        publish_event,
-        trigger="interval",
-        minutes=interval,
-        id=task_id,
-        args=[task_id, name, instruction, interval],
-        replace_existing=True,
-        next_run_time=datetime.now()
-    )
+    try:
 
-    add_log(
-        f"Schedule registered: {name} (every {interval} minutes)"
-    )
+        if schedule_type == "interval":
+
+            scheduler.add_job(
+                publish_event,
+                trigger="interval",
+                minutes=interval,
+                id=task_id,
+                args=[task_id, name, instruction, interval, "interval"],
+                replace_existing=True,
+                next_run_time=datetime.now(TIMEZONE)
+            )
+
+            add_log(
+                f"Recurring schedule registered: {name} "
+                f"(every {interval} minutes)"
+            )
+
+        else:
+
+            scheduler.add_job(
+                publish_event,
+                trigger="date",
+                run_date=scheduled_time,
+                id=task_id,
+                args=[task_id, name, instruction, None, "once"],
+                replace_existing=True
+            )
+
+            add_log(
+                f"One-time schedule registered: {name} "
+                f"at {scheduled_time.strftime('%Y-%m-%d %H:%M')} "
+                "(Pakistan time)"
+            )
+
+    except Exception:
+        with lock:
+            tasks.pop(task_id, None)
+        raise
 
     return task_id
 
 
 def remove_schedule(task_id):
+
     if scheduler.get_job(task_id):
         scheduler.remove_job(task_id)
 
@@ -66,64 +167,8 @@ def remove_schedule(task_id):
     add_log(f"Schedule removed: {task_id}")
 
 
-# from apscheduler.schedulers.background import BackgroundScheduler
+def stop_scheduler():
 
-# from event_queue import publish_event
-
-
-# scheduler = BackgroundScheduler()
-
-
-# def qwen_monitor_trigger():
-#     """Publish an event whenever the monitoring schedule fires."""
-
-#     publish_event(
-#         task_name="Qwen Announcement Monitor",
-#         # task="""
-#         # A scheduled Qwen monitoring event has been triggered.
-
-#         # For this initial pipeline test, confirm that you received
-#         # the scheduled event and report its execution status.
-#         # """
-#         task="""
-#         You are performing a scheduled Qwen model release monitoring task.
-
-#         1. Retrieve the previous monitoring state using get_monitoring_state.
-#         2. Use browse_page to inspect https://qwen.ai/blog.
-#         3. Identify the latest major Qwen model announcement.
-#         4. Only consider information published by official Qwen sources.
-#         5. Compare the latest announcement with the saved monitoring state.
-
-#         IMPORTANT:
-#         - If no previous state exists, save the latest announcement as the baseline.
-#         Do not report it as a new release.
-#         - If the latest announcement matches the saved URL, report no new release.
-#         - If it is genuinely new, research its details and verify them against
-#         official sources before reporting.
-#         - Save the newly identified announcement using save_monitoring_state.
-#         - Never invent a release or claim verification without evidence.
-
-#         Return a concise monitoring status:
-#         NEW RELEASE, NO NEW RELEASE, or CHECK FAILED.
-#         """
-#     )
-
-
-# def start_scheduler():
-#     scheduler.add_job(
-#         qwen_monitor_trigger,
-#         trigger="interval",
-#         seconds=60,  # Change to 900 for 15 minutes
-#         id="qwen_monitor",
-#         replace_existing=True
-#     )
-
-#     scheduler.start()
-
-#     print("[SCHEDULER] Qwen monitoring schedule registered.")
-#     print("[SCHEDULER] Trigger interval: 60 seconds")
-
-
-# def stop_scheduler():
-#     if scheduler.running:
-#         scheduler.shutdown(wait=False)
+    if scheduler.running:
+        scheduler.shutdown(wait=False)
+        add_log("Trigger service stopped.")

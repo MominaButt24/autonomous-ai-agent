@@ -1,0 +1,18 @@
+[
+  {
+    "id": "1794888758.19249",
+    "task_id": "d25ef9da",
+    "task": "qwen release",
+    "timestamp": "2026-11-17 09:12:38",
+    "status": "Failed",
+    "response": "Event loop is closed! Is Playwright already stopped?"
+  },
+  {
+    "id": "1794888908.04836",
+    "task_id": "9ab4f7ef",
+    "task": "qwen",
+    "timestamp": "2026-11-17 09:15:08",
+    "status": "Failed",
+    "response": "StructuredTool does not support sync invocation."
+  }
+]
