@@ -14,5 +14,29 @@
     "timestamp": "2026-11-17 09:15:08",
     "status": "Failed",
     "response": "StructuredTool does not support sync invocation."
+  },
+  {
+    "id": "1794892463.752524",
+    "task_id": "a3475a14",
+    "task": "date and weather",
+    "timestamp": "2026-11-17 10:14:23",
+    "status": "Rate Limited",
+    "response": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m4dzyzk8erbvwtrd3yrqeasx` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 5177, Requested 3291. Please try again in 3.51s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}"
+  },
+  {
+    "id": "1794892560.078018",
+    "task_id": "17d21735",
+    "task": "date and weather",
+    "timestamp": "2026-11-17 10:16:00",
+    "status": "Failed",
+    "response": "Connection error."
+  },
+  {
+    "id": "1794892632.018102",
+    "task_id": "49ee3fa7",
+    "task": "date and weather",
+    "timestamp": "2026-11-17 10:17:12",
+    "status": "Completed",
+    "response": "**Today's Date:** 2026‑11‑17  \n\n**Lahore, Pakistan – Current Weather (as of the latest observation):**\n\n| Parameter | Value |\n|-----------|-------|\n| **Condition** | Sunny |\n| **Temperature** | 20 °C (67 °F) |\n| **Feels Like** | 19 °C (65 °F) |\n| **Humidity** | 46 % |\n| **Wind** | 4 km/h (2 mph) from the NNW (331°) |\n| **Cloud Cover** | 2 % |\n| **Pressure** | 1016 hPa (30 inches) |\n| **Visibility** | 10 km (6 mi) |\n| **UV Index** | 1 |\n| **Precipitation** | 0 mm (0 in) |\n\n*Observation time:* 04:17 AM (local time)  \n\nThese figures are taken from the latest data provided by **wttr.in** for Lahore."
   }
 ]
